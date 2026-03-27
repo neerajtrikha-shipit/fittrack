@@ -8,7 +8,7 @@ import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // ── Auth config ───────────────────────────────────────────────────────────────
 const PASSCODE   = process.env.APP_PASSCODE  ?? '1234';
@@ -64,6 +64,10 @@ db.exec(`
   );
 `);
 
+// Safe migrations — no-op if columns already exist
+try { db.exec('ALTER TABLE entries ADD COLUMN image TEXT'); } catch { /* already exists */ }
+try { db.exec('ALTER TABLE entries ADD COLUMN logged_at TEXT'); } catch { /* already exists */ }
+
 const { c } = db.prepare('SELECT COUNT(*) as c FROM activities').get() as { c: number };
 if (c === 0) {
   const ins = db.prepare(
@@ -82,7 +86,7 @@ app.get('/api/state', requireAuth, (_req, res) => {
     .all();
   const entries = db
     .prepare(
-      'SELECT id, activity_id as activityId, date, value, duration, note FROM entries ORDER BY date'
+      'SELECT id, activity_id as activityId, date, value, duration, note, image, logged_at as loggedAt FROM entries ORDER BY date'
     )
     .all();
   res.json({ activities, entries });
@@ -105,8 +109,8 @@ app.delete('/api/activities/:id', requireAuth, (req, res) => {
 app.post('/api/entries', requireAuth, (req, res) => {
   const e = req.body;
   db.prepare(
-    'INSERT OR IGNORE INTO entries (id, activity_id, date, value, duration, note) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run(e.id, e.activityId, e.date, e.value, e.duration ?? null, e.note ?? null);
+    'INSERT OR IGNORE INTO entries (id, activity_id, date, value, duration, note, image, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(e.id, e.activityId, e.date, e.value, e.duration ?? null, e.note ?? null, e.image ?? null, e.loggedAt ?? null);
   res.json({ ok: true });
 });
 
@@ -129,13 +133,13 @@ app.post('/api/import', requireAuth, (req, res) => {
     'INSERT OR IGNORE INTO activities (id, name, emoji, type, unit, goal) VALUES (?, ?, ?, ?, ?, ?)'
   );
   const insEnt = db.prepare(
-    'INSERT OR IGNORE INTO entries (id, activity_id, date, value, duration, note) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO entries (id, activity_id, date, value, duration, note, image, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
   db.transaction(() => {
     for (const a of activities)
       insAct.run(a.id, a.name, a.emoji, a.type, a.unit, a.goal ?? null);
     for (const e of entries)
-      insEnt.run(e.id, e.activityId, e.date, e.value, e.duration ?? null, e.note ?? null);
+      insEnt.run(e.id, e.activityId, e.date, e.value, e.duration ?? null, e.note ?? null, (e as Record<string, unknown>).image ?? null, (e as Record<string, unknown>).loggedAt ?? null);
   })();
   res.json({ ok: true });
 });

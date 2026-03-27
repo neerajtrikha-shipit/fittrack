@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Flame, Plus, Check, X, Clock, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import type { Activity, WorkoutEntry } from '../types';
 import { toDateStr, getStreak } from '../store';
+import { LogEntryModal } from './LogEntryModal';
 
 interface Props {
   activities: Activity[];
@@ -71,6 +72,16 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+/** Returns a short time-of-day label from an ISO timestamp */
+function getTimeLabel(loggedAt?: string): string | null {
+  if (!loggedAt) return null;
+  const hour = new Date(loggedAt).getHours();
+  if (hour >= 5  && hour < 12) return '🌅 Morning';
+  if (hour >= 12 && hour < 17) return '☀️ Afternoon';
+  if (hour >= 17 && hour < 21) return '🌆 Evening';
+  return '🌙 Night';
+}
+
 const MILESTONE_LABELS: Record<number, string> = {
   7: '1 wk', 14: '2 wks', 21: '3 wks',
   30: '1 mo', 60: '2 mo', 90: '3 mo',
@@ -108,7 +119,6 @@ function StreakBadge({ streak }: { streak: number }) {
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex flex-col items-center py-14 px-4 text-center animate-[slideUp_400ms_ease-out_both]">
-      {/* Icon cluster */}
       <div className="relative mb-8 w-24 h-24">
         <div className="w-24 h-24 bg-gradient-to-br from-violet-600/20 to-indigo-600/10 rounded-3xl border border-violet-500/20 flex items-center justify-center shadow-[0_0_40px_rgba(124,58,237,0.15)]">
           <span className="text-5xl select-none">🏃</span>
@@ -161,27 +171,24 @@ function ActivityCard({
   activity,
   todayEntries,
   streak,
-  onLog,
+  onOpenModal,
   onRemove,
 }: {
   activity: Activity;
   todayEntries: WorkoutEntry[];
   streak: number;
-  onLog: (value: number, duration?: number) => void;
+  onOpenModal: () => void;
   onRemove: (id: string) => void;
 }) {
-  const [inputting, setInputting] = useState(false);
-  const [val, setVal] = useState('');
-  const [dur, setDur] = useState('');
   const [justLogged, setJustLogged] = useState(false);
   const [goalJustMet, setGoalJustMet] = useState(false);
   const [bouncing, setBouncing] = useState(false);
-  const [tapped, setTapped] = useState(false);
+  // Track when a new entry is added to trigger flash
+  const prevCountRef = useRef(todayEntries.length);
 
   const todayTotal = todayEntries.reduce((s, e) => s + e.value, 0);
   const todayTime = todayEntries.reduce((s, e) => s + (e.duration ?? 0), 0);
   const goalMet = activity.goal ? todayTotal >= activity.goal : todayEntries.length > 0;
-  const isTimeOnly = activity.unit === 'min';
 
   // Detect the moment goalMet first becomes true (not on mount if already met)
   const prevGoalMetRef = useRef(goalMet);
@@ -196,26 +203,20 @@ function ActivityCard({
     prevGoalMetRef.current = goalMet;
   }, [goalMet]);
 
+  // Flash effect when a new entry is logged
+  useEffect(() => {
+    if (todayEntries.length > prevCountRef.current) {
+      setJustLogged(true);
+      setTimeout(() => setJustLogged(false), 700);
+    }
+    prevCountRef.current = todayEntries.length;
+  }, [todayEntries.length]);
+
   // Stable confetti layout tied to activity id
   const confettiPieces = useMemo(
     () => makeConfetti(activity.id.charCodeAt(0)),
     [activity.id]
   );
-
-  function submit() {
-    const n = parseFloat(val);
-    if (!isNaN(n) && n > 0) {
-      const d = parseFloat(dur);
-      onLog(n, !isNaN(d) && d > 0 ? d : undefined);
-      setVal('');
-      setDur('');
-      setInputting(false);
-      setJustLogged(true);
-      setTapped(true);
-      setTimeout(() => setJustLogged(false), 700);
-      setTimeout(() => setTapped(false), 300);
-    }
-  }
 
   return (
     <div
@@ -256,13 +257,12 @@ function ActivityCard({
 
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3.5 min-w-0">
-          {/* Emoji / checkmark box with animated transition */}
+          {/* Emoji / checkmark box */}
           <div className={`
             w-[52px] h-[52px] rounded-2xl shrink-0 relative overflow-hidden
             transition-colors duration-500
             ${goalMet ? 'bg-emerald-500/20' : 'bg-white/5'}
           `}>
-            {/* Emoji — exits when goal met */}
             <span
               className="absolute inset-0 flex items-center justify-center text-3xl select-none transition-all duration-300"
               style={{
@@ -272,7 +272,6 @@ function ActivityCard({
             >
               {activity.emoji}
             </span>
-            {/* Checkmark — pops in when goal met */}
             {goalMet && (
               <span
                 key="check"
@@ -318,16 +317,15 @@ function ActivityCard({
           </div>
         </div>
 
+        {/* + button → opens modal */}
         <button
-          onClick={() => setInputting(v => !v)}
-          aria-label={inputting ? `Cancel logging ${activity.name}` : `Log ${activity.name}`}
+          onClick={onOpenModal}
+          aria-label={`Log ${activity.name}`}
           className={`
             w-11 h-11 flex items-center justify-center rounded-full shrink-0 transition-all duration-200 active:scale-90
-            ${inputting
-              ? 'bg-[#2a2a38] text-slate-400 rotate-45'
-              : goalMet
-                ? 'bg-emerald-700/60 hover:bg-emerald-600/70 text-white ring-1 ring-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                : 'bg-indigo-600 hover:bg-indigo-500 text-white ring-1 ring-indigo-500/40 hover:ring-indigo-400/60 shadow-[0_0_12px_rgba(99,102,241,0.4)] hover:shadow-[0_0_18px_rgba(99,102,241,0.6)]'
+            ${goalMet
+              ? 'bg-emerald-700/60 hover:bg-emerald-600/70 text-white ring-1 ring-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+              : 'bg-indigo-600 hover:bg-indigo-500 text-white ring-1 ring-indigo-500/40 hover:ring-indigo-400/60 shadow-[0_0_12px_rgba(99,102,241,0.4)] hover:shadow-[0_0_18px_rgba(99,102,241,0.6)]'
             }
           `}
         >
@@ -335,78 +333,57 @@ function ActivityCard({
         </button>
       </div>
 
-      {inputting && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative">
-              <input
-                autoFocus
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder={isTimeOnly ? 'min...' : `${activity.unit}...`}
-                value={val}
-                onChange={e => setVal(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setInputting(false); }}
-                className="w-full bg-[#0f0f13] border border-[#2a2a38] rounded-xl px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 pointer-events-none">
-                {activity.unit}
-              </span>
-            </div>
-            {!isTimeOnly && (
-              <div className="flex-1 relative">
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  placeholder="time..."
-                  value={dur}
-                  onChange={e => setDur(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setInputting(false); }}
-                  className="w-full bg-[#0f0f13] border border-[#2a2a38] rounded-xl px-3 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/30 transition-all"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-600 pointer-events-none">
-                  min
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={submit}
-              className={`flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl transition-all duration-150 active:scale-95 ${tapped ? 'animate-[tapFeedback_280ms_ease-out]' : ''}`}
-            >
-              Log it
-            </button>
-            <button
-              onClick={() => { setInputting(false); setVal(''); setDur(''); }}
-              aria-label="Cancel"
-              className="min-w-[44px] py-3 text-slate-500 hover:text-slate-300 rounded-xl hover:bg-white/5 transition-colors active:scale-95 flex items-center justify-center"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {todayEntries.length > 0 && !inputting && (
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {todayEntries.map(e => (
-            <span
-              key={e.id}
-              className="flex items-center gap-1.5 text-xs bg-white/5 border border-white/8 text-slate-400 px-2.5 py-1 rounded-full group cursor-default"
-            >
-              {e.value}{activity.unit}
-              {e.duration ? <span className="text-slate-600">· {formatDuration(e.duration)}</span> : null}
-              <button
-                onClick={() => onRemove(e.id)}
-                className="text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 ml-0.5"
+      {/* Logged entry pills */}
+      {todayEntries.length > 0 && (
+        <div className="mt-3 flex flex-col gap-2">
+          {todayEntries.map(e => {
+            const timeLabel = getTimeLabel(e.loggedAt);
+            return (
+              <div
+                key={e.id}
+                className="flex items-start gap-2 bg-white/4 border border-white/7 rounded-xl p-2.5 group"
               >
-                <X size={10} />
-              </button>
-            </span>
-          ))}
+                {/* Image thumbnail */}
+                {e.image && (
+                  <img
+                    src={e.image}
+                    alt="Session photo"
+                    className="w-12 h-12 rounded-lg object-cover shrink-0 border border-white/10"
+                  />
+                )}
+
+                <div className="flex-1 min-w-0">
+                  {/* Value + time */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-slate-300">
+                      {e.value}{activity.unit}
+                    </span>
+                    {e.duration ? (
+                      <span className="flex items-center gap-1 text-xs text-slate-500">
+                        <Clock size={10} />{formatDuration(e.duration)}
+                      </span>
+                    ) : null}
+                    {timeLabel && (
+                      <span className="text-xs text-slate-600">{timeLabel}</span>
+                    )}
+                  </div>
+                  {/* Note */}
+                  {e.note && (
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{e.note}</p>
+                  )}
+                </div>
+
+                {/* Delete */}
+                <button
+                  onClick={() => onRemove(e.id)}
+                  aria-label="Remove entry"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-700 hover:text-red-400 hover:bg-red-500/10 transition-all opacity-0 group-hover:opacity-100 shrink-0 active:scale-90"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -418,6 +395,7 @@ export function TodayView({
   selectedDate, onNavigateDate, canGoBack, isToday,
 }: Props) {
   const [showCopied, setShowCopied] = useState(false);
+  const [modalActivity, setModalActivity] = useState<Activity | null>(null);
   const today = selectedDate;
   const todayEntries = entries.filter(e => e.date === today);
 
@@ -521,7 +499,7 @@ export function TodayView({
                   activity={activity}
                   todayEntries={todayEntries.filter(e => e.activityId === activity.id)}
                   streak={getStreak(activity.id, entries)}
-                  onLog={(value, duration) => onLog({ activityId: activity.id, date: today, value, duration })}
+                  onOpenModal={() => setModalActivity(activity)}
                   onRemove={onRemoveEntry}
                 />
               </div>
@@ -547,6 +525,16 @@ export function TodayView({
             <span className="text-sm font-medium">Add activity</span>
           </button>
         </>
+      )}
+
+      {/* Log Entry Modal */}
+      {modalActivity && (
+        <LogEntryModal
+          activity={modalActivity}
+          date={today}
+          onLog={(entry) => { onLog(entry); }}
+          onClose={() => setModalActivity(null)}
+        />
       )}
     </div>
   );

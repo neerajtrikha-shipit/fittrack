@@ -16,6 +16,8 @@ export interface WorkoutEntry {
   value: number; // distance / reps / minutes
   duration?: number; // time in minutes (always)
   note?: string;
+  image?: string; // base64 data URL
+  loggedAt?: string; // ISO 8601 timestamp e.g. "2026-03-27T08:30:00.000Z"
 }
 
 export interface AppState {
