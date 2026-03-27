@@ -151,7 +151,8 @@ app.get('/{*path}', (_req, res) => {
   res.sendFile(path.join(DIST, 'index.html'));
 });
 
-const PORT = Number(process.env.PORT ?? 3001);
+// API_PORT takes priority (set in dev to avoid conflict with Vite's PORT env var)
+const PORT = Number(process.env.API_PORT ?? process.env.PORT ?? 3001);
 app.listen(PORT, () => {
   console.log(`FitTrack running on http://localhost:${PORT}`);
 });

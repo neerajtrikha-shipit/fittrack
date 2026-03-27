@@ -102,7 +102,7 @@ export function LogEntryModal({ activity, date, onLog, onClose }: Props) {
         className="fixed bottom-0 left-0 right-0 z-50 animate-[slideUpSheet_300ms_cubic-bezier(0.32,0.72,0,1)_both]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="bg-[#1a1a26] border-t border-[#2a2a3c] rounded-t-3xl px-5 pt-3 pb-6 max-w-lg mx-auto shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
+        <div className="bg-[#1a1a26] border-t border-[#2a2a3c] rounded-t-3xl px-5 pt-3 pb-6 max-w-lg mx-auto shadow-[0_-8px_40px_rgba(0,0,0,0.6)] max-h-[92vh] overflow-y-auto">
 
           {/* Drag handle */}
           <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mb-4" />

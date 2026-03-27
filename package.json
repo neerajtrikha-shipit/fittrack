@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,web -c cyan,yellow \"tsx server/index.ts\" \"vite\"",
+    "dev": "concurrently -k -n api,web -c cyan,yellow \"API_PORT=3001 tsx server/index.ts\" \"vite\"",
     "server": "tsx server/index.ts",
     "client": "vite",
     "build": "tsc -b && vite build",
