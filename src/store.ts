@@ -58,11 +58,20 @@ function post(url: string, body: unknown) {
   }).then(res => { if (res.status === 401) handleUnauthorized(); return res; });
 }
 
-export function useStore() {
+export function useStore(authed: boolean) {
   const [state, setState] = useState<AppState>({ activities: [], entries: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Not logged in — clear state and stop loading immediately
+    if (!authed) {
+      setState({ activities: [], entries: [] });
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     async function init() {
       // Migrate any existing localStorage data on first boot
       try {
@@ -75,13 +84,13 @@ export function useStore() {
       } catch { /* ignore migration errors */ }
 
       const stateRes = await fetch('/api/state', { headers: authHeaders() });
-      if (stateRes.status === 401) { handleUnauthorized(); return; }
+      if (stateRes.status === 401) { handleUnauthorized(); setLoading(false); return; }
       const data = await stateRes.json() as AppState;
       setState(data);
       setLoading(false);
     }
     init().catch(() => setLoading(false));
-  }, []);
+  }, [authed]); // re-fetch whenever login/logout happens
 
   function addActivity(activity: Activity) {
     setState(s => ({ ...s, activities: [...s.activities, activity] }));

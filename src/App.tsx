@@ -42,7 +42,7 @@ function App() {
   const [tab, setTab] = useState<Tab>('today');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => toDateStr(new Date()));
-  const { state, loading, addActivity, logEntry, removeEntry } = useStore();
+  const { state, loading, addActivity, logEntry, removeEntry } = useStore(authed);
 
   // Listen for 401 responses from the API
   useEffect(() => {
