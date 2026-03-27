@@ -72,6 +72,12 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
+const EFFORT_STYLES: Record<string, { label: string; cls: string }> = {
+  easy:     { label: '😌 Easy',     cls: 'text-emerald-400 bg-emerald-500/15 border-emerald-500/25' },
+  moderate: { label: '💪 Moderate', cls: 'text-amber-400  bg-amber-500/15  border-amber-400/25'  },
+  hard:     { label: '🔥 Hard',     cls: 'text-red-400    bg-red-500/15    border-red-400/25'     },
+};
+
 /** Returns a short time-of-day label from an ISO timestamp */
 function getTimeLabel(loggedAt?: string): string | null {
   if (!loggedAt) return null;
@@ -365,6 +371,11 @@ function ActivityCard({
                     ) : null}
                     {timeLabel && (
                       <span className="text-xs text-slate-600">{timeLabel}</span>
+                    )}
+                    {e.effort && EFFORT_STYLES[e.effort] && (
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${EFFORT_STYLES[e.effort].cls}`}>
+                        {EFFORT_STYLES[e.effort].label}
+                      </span>
                     )}
                   </div>
                   {/* Note */}

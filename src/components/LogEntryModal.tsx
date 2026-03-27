@@ -2,6 +2,29 @@ import { useState, useRef } from 'react';
 import { X, Camera, Image as ImageIcon, Trash2 } from 'lucide-react';
 import type { Activity, WorkoutEntry } from '../types';
 
+type Effort = 'easy' | 'moderate' | 'hard';
+
+const EFFORT_OPTIONS: { value: Effort; label: string; active: string; inactive: string }[] = [
+  {
+    value: 'easy',
+    label: '😌 Easy',
+    active:   'bg-emerald-500/25 border-emerald-400/60 text-emerald-300',
+    inactive: 'bg-white/4 border-white/10 text-slate-500 hover:border-emerald-400/30 hover:text-emerald-400',
+  },
+  {
+    value: 'moderate',
+    label: '💪 Moderate',
+    active:   'bg-amber-500/20 border-amber-400/60 text-amber-300',
+    inactive: 'bg-white/4 border-white/10 text-slate-500 hover:border-amber-400/30 hover:text-amber-400',
+  },
+  {
+    value: 'hard',
+    label: '🔥 Hard',
+    active:   'bg-red-500/20 border-red-400/60 text-red-300',
+    inactive: 'bg-white/4 border-white/10 text-slate-500 hover:border-red-400/30 hover:text-red-400',
+  },
+];
+
 interface Props {
   activity: Activity;
   date: string;
@@ -38,6 +61,7 @@ export function LogEntryModal({ activity, date, onLog, onClose }: Props) {
   const [val, setVal] = useState('');
   const [dur, setDur] = useState('');
   const [note, setNote] = useState('');
+  const [effort, setEffort] = useState<Effort | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [tapped, setTapped] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
@@ -82,6 +106,7 @@ export function LogEntryModal({ activity, date, onLog, onClose }: Props) {
       value: n,
       duration: !isNaN(d) && d > 0 ? d : undefined,
       note: note.trim() || undefined,
+      effort: effort ?? undefined,
       image: image ?? undefined,
       loggedAt: new Date().toISOString(),
     });
@@ -179,13 +204,30 @@ export function LogEntryModal({ activity, date, onLog, onClose }: Props) {
               )}
             </div>
 
-            {/* Notes */}
+            {/* Notes + Effort */}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1.5">
                 Notes <span className="text-slate-700 font-normal">(optional)</span>
               </label>
+
+              {/* Effort quick-tags */}
+              <div className="flex gap-2 mb-2">
+                {EFFORT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setEffort(prev => prev === opt.value ? null : opt.value)}
+                    className={`flex-1 py-2 rounded-xl border text-xs font-medium transition-all active:scale-95 ${
+                      effort === opt.value ? opt.active : opt.inactive
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
               <textarea
-                placeholder="How did it feel? Any highlights..."
+                placeholder="Any other notes..."
                 value={note}
                 onChange={e => setNote(e.target.value)}
                 rows={2}
