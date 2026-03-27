@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 data.db
+data.db-shm
+data.db-wal
+.claude/settings.local.json
 
 # Editor directories and files
 .vscode/*
